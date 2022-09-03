@@ -147,7 +147,7 @@ resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-bus-positions-raw
   kafka_startup_mode   = "latest-offset"
   # deleted some useless fields to get this column descriptor below < 256 chars and avoid 500 errors from Flink API
   schema_sql = <<EOF
-      `VP` ROW<`desi` STRING,`dir` STRING,`oper` INT,`veh` INT,`tst` INT,`tsi` INT,`spd` FLOAT,`hdg` INT,`lat` FLOAT,`long` FLOAT,`acc` FLOAT,`dl` INT,`drst` INT,`oday` STRING,`start` STRING,`loc` STRING,`stop` STRING,`route` STRING,`occu` INT>
+      `VP` ROW<`desi` STRING,`dir` STRING,`oper` INT,`veh` INT,`tst` STRING,`tsi` INT,`spd` FLOAT,`hdg` INT,`lat` FLOAT,`long` FLOAT,`acc` FLOAT,`dl` INT,`drst` INT,`oday` STRING,`start` STRING,`loc` STRING,`stop` STRING,`route` STRING,`occu` INT>
   EOF
 }
 
@@ -176,7 +176,7 @@ resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-bus-positions-fla
     `dir` STRING,
     `oper` INT,
     `veh` INT,
-    `tst` INT,
+    `tst` STRING,
     `tsi` INT,
     `spd` FLOAT,
     `hdg` INT,
