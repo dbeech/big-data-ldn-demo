@@ -266,8 +266,24 @@ resource "aiven_grafana" "demo-metrics-dashboard" {
   }
 }
 
+# Metrics integration: Kafka -> M3
+resource "aiven_service_integration" "demo-metrics-integration-kafka" {
+  project                  = var.project_name
+  integration_type         = "metrics"
+  source_service_name      = aiven_kafka.demo-kafka.service_name
+  destination_service_name = aiven_m3db.demo-metrics.service_name
+}
+
+# Metrics integration: Flink -> M3
+resource "aiven_service_integration" "demo-metrics-integration-flink" {
+  project                  = var.project_name
+  integration_type         = "metrics"
+  source_service_name      = aiven_flink.demo-flink.service_name
+  destination_service_name = aiven_m3db.demo-metrics.service_name
+}
+
 # Dashboard integration = M3 -> Grafana
-resource "aiven_service_integration" "demo-integration-dashboard" {
+resource "aiven_service_integration" "demo-dashboard-integration" {
   project                  = var.project_name
   integration_type         = "dashboard"
   source_service_name      = aiven_grafana.demo-metrics-dashboard.service_name
