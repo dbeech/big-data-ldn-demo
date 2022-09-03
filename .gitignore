@@ -1,0 +1,6 @@
+.terraform*
+creds
+backup
+scripts
+venv
+*.tfstate*

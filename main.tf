@@ -70,26 +70,6 @@ resource "aiven_kafka_connect" "demo-kafka-connect" {
   }
 }
 
-resource "aiven_kafka_connector" "demo-kafka-connect-mqtt-digitransit-hfp-vp" {
-  project         = var.project_name
-  service_name    = "${var.service_name_prefix}-kafka-connect"
-  connector_name  = aiven_kafka_topic.demo-kafka-topic-digitransit-hfp-raw-vp-bus.topic_name
-  config = {
-    "connector.class" = "com.datamountaineer.streamreactor.connect.mqtt.source.MqttSourceConnector",
-    "connect.mqtt.client.id" = aiven_kafka_topic.demo-kafka-topic-digitransit-hfp-raw-vp-bus.topic_name,
-    "connect.mqtt.error.policy" = "NOOP",
-    "connect.mqtt.hosts" = "tcp://mqtt.hsl.fi:1883",
-    "connect.mqtt.kcql" = "INSERT INTO ${aiven_kafka_topic.demo-kafka-topic-digitransit-hfp-raw-vp-bus.topic_name} SELECT * FROM /hfp/v2/journey/ongoing/vp/bus/+/+/+/+/+/+/+/+/+/+/+/+ WITHCONVERTER=`com.datamountaineer.streamreactor.connect.converters.source.JsonSimpleConverter`",
-    "connect.mqtt.log.message" = "true",
-    "connect.mqtt.service.quality" = "0",
-    "connect.progress.enabled" = "true",
-    "errors.tolerance" = "all",
-    "name" = aiven_kafka_topic.demo-kafka-topic-digitransit-hfp-raw-vp-bus.topic_name
-    "errors.log.enable" = "true",
-    "errors.log.include.messages" = "true" 
-  }
-}
-
 resource "aiven_service_integration" "demo-kafka-connect-source-integration" {
   project                  = var.project_name
   integration_type         = "kafka_connect"
@@ -120,17 +100,6 @@ resource "aiven_service_integration" "demo-flink-kafka-integration" {
 # Kafka topics and Flink tables
 ###################################################
 
-resource "aiven_kafka_topic" "demo-kafka-topic-digitransit-hfp-raw-vp-bus" {
-  project                  = var.project_name
-  service_name             = aiven_kafka.demo-kafka.service_name
-  topic_name               = "digitransit-hfp-raw-vp-bus"
-  partitions               = 3
-  replication              = 3
-  config {
-    retention_ms = 604800000
-  }
-}
-
 resource "aiven_kafka_topic" "demo-kafka-topic-digitransit-hfp-intermediate" {
   project                  = var.project_name
   service_name             = aiven_kafka.demo-kafka.service_name
@@ -140,6 +109,28 @@ resource "aiven_kafka_topic" "demo-kafka-topic-digitransit-hfp-intermediate" {
   config {
     retention_ms = 604800000
   }
+}
+
+###################################################
+# DigiTransit HFP feeds
+###################################################
+
+module "digitransit-hfp-raw-vp-bus" {
+  source = "./digitransit-hfp"
+  aiven_project_name = var.project_name
+  kafka_connect_service_name = aiven_kafka_connect.demo-kafka-connect.service_name
+  kafka_service_name = aiven_kafka.demo-kafka.service_name
+  kafka_topic_name = "digitransit-hfp-raw-vp-bus"
+  mqtt_topic_name = "/hfp/v2/journey/ongoing/vp/bus/+/+/+/+/+/+/+/+/+/+/+/+"
+}
+
+module "digitransit-hfp-raw-vp-train" {
+  source = "./digitransit-hfp"
+  aiven_project_name = var.project_name
+  kafka_connect_service_name = aiven_kafka_connect.demo-kafka-connect.service_name
+  kafka_service_name = aiven_kafka.demo-kafka.service_name
+  kafka_topic_name = "digitransit-hfp-raw-vp-train"
+  mqtt_topic_name = "/hfp/v2/journey/ongoing/vp/train/+/+/+/+/+/+/+/+/+/+/+/+"
 }
 
 # resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-raw-vp" {
