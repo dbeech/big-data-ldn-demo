@@ -1,5 +1,7 @@
 # Big Data LDN Digitransit demo
 
+![Architecture diagram](images/architecture.png)
+
 ## Instructions
 
 1. Create `env.sh` containing your Aiven API token
