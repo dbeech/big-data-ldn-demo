@@ -39,7 +39,16 @@ avn service integration-update ${integration_id} \
             ],
             "topics": [{"name": "digitransit-hfp-bus-positions-flattened"}],
             "data_format": "JSONEachRow",
-            "group_name": "158a7766-7dac-4391-8f0a-c9bdf86705f1"
+            "group_name": "65e9b6ef-978e-4746-8714-dfb2cbef6915"
+        },        
+        {
+            "name": "digitransit_hfp_bus_positions_raw",
+            "columns": [
+                {"name": "VP", "type": "JSON"}
+            ],            
+            "topics": [{"name": "digitransit_hfp_bus_positions_raw"}],
+            "data_format": "JSONEachRow",
+            "group_name": "3e4bf765-3418-42bd-b6f9-0378d677d583"
         }
     ]
 }'
