@@ -11,4 +11,5 @@ service_plan_kafka_connect = "startup-4"
 service_plan_grafana = "startup-4"
 service_plan_m3db = "startup-8"
 service_plan_opensearch = "startup-4"
+service_plan_pg = "startup-4"
 allowed_ips = ["0.0.0.0/0"]

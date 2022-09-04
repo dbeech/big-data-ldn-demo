@@ -13,6 +13,7 @@ variable "service_plan_kafka_connect" {}
 variable "service_plan_grafana" {}
 variable "service_plan_m3db" {}
 variable "service_plan_opensearch" {}
+variable "service_plan_pg" {}
 
 terraform {
   required_providers {
@@ -28,7 +29,7 @@ provider "aiven" {
 }
 
 ###################################################
-# Apache Kafka + MirrorMaker2
+# Apache Kafka
 ###################################################
 
 resource "aiven_kafka" "demo-kafka" {
@@ -93,6 +94,33 @@ resource "aiven_service_integration" "demo-flink-kafka-integration" {
   project                  = var.project_name
   integration_type         = "flink"
   source_service_name      = aiven_kafka.demo-kafka.service_name
+  destination_service_name = aiven_flink.demo-flink.service_name
+}
+
+###################################################
+# PostgreSQL
+###################################################
+
+resource "aiven_pg" "demo-postgres" {
+  project                 = var.project_name
+  cloud_name              = var.service_cloud
+  plan                    = var.service_plan_pg
+  service_name            = "${var.service_name_prefix}-postgres"
+  pg_user_config {
+    pg_version            = "14"
+  }
+}
+
+resource "aiven_pg_database" "demo-postgres-database" {
+  project                 = var.project_name
+  service_name            = aiven_pg.demo-postgres.service_name
+  database_name           = "digitransit"
+}
+
+resource "aiven_service_integration" "demo-flink-postgres-integration" {
+  project                  = var.project_name
+  integration_type         = "flink"
+  source_service_name      = aiven_pg.demo-postgres.service_name
   destination_service_name = aiven_flink.demo-flink.service_name
 }
 
@@ -175,6 +203,7 @@ resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-bus-positions-fla
     `desi` STRING,
     `dir` STRING,
     `oper` INT,
+    `oper_name` STRING,
     `veh` INT,
     `tst` STRING,
     `tsi` INT,
@@ -194,6 +223,18 @@ resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-bus-positions-fla
   EOF
 }
 
+resource "aiven_flink_table" "demo-flink-table-digitransit-operators" {
+  project              = var.project_name
+  service_name         = aiven_flink.demo-flink.service_name
+  integration_id       = aiven_service_integration.demo-flink-postgres-integration.integration_id
+  jdbc_table           = "public.digitransit_operators"
+  table_name           = "digitransit_operators"
+  schema_sql = <<EOF
+    `id` INT PRIMARY KEY,
+    `name` STRING NOT NULL
+  EOF
+}
+
 resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flattening" {
   project       = var.project_name
   service_name  = aiven_flink.demo-flink.service_name
@@ -201,6 +242,7 @@ resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flatteni
   table_ids = [
     aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-raw.table_id,
     aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-flattened.table_id,
+    aiven_flink_table.demo-flink-table-digitransit-operators.table_id
   ]                                                           
   statement = <<EOF
     INSERT INTO ${aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-flattened.table_name}
@@ -208,6 +250,7 @@ resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flatteni
       VP.`desi`,
       VP.`dir`,
       VP.`oper`,
+      operators.`name`,
       VP.`veh`,
       VP.`tst`,
       VP.`tsi`,
@@ -224,7 +267,9 @@ resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flatteni
       VP.`stop`,
       VP.`route`,
       VP.`occu`
-    FROM ${aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-raw.table_name}
+    FROM ${aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-raw.table_name} positions
+    INNER JOIN ${aiven_flink_table.demo-flink-table-digitransit-operators.table_name} operators
+    ON positions.VP.`oper` = operators.`id`
   EOF                                                                                             
 }
 
