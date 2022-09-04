@@ -87,7 +87,10 @@ resource "aiven_flink" "demo-flink" {
   cloud_name              = var.service_cloud
   plan                    = var.service_plan_flink
   service_name            = "${var.service_name_prefix}-flink"
-  termination_protection  = false
+  termination_protection  = true
+  flink_user_config {
+    parallelism_default = 3
+  }
 }
 
 resource "aiven_service_integration" "demo-flink-kafka-integration" {
