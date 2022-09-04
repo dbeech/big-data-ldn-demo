@@ -111,12 +111,6 @@ resource "aiven_pg" "demo-postgres" {
   }
 }
 
-resource "aiven_pg_database" "demo-postgres-database" {
-  project                 = var.project_name
-  service_name            = aiven_pg.demo-postgres.service_name
-  database_name           = "digitransit"
-}
-
 resource "aiven_service_integration" "demo-flink-postgres-integration" {
   project                  = var.project_name
   integration_type         = "flink"
