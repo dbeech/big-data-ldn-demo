@@ -36,4 +36,5 @@ resource "aiven_kafka_connector" "digitransit-hfp-kafka-connector" {
     "errors.log.enable" = "true",
     "errors.log.include.messages" = "true" 
   }
+  depends_on = [var.connect_integration]
 }
