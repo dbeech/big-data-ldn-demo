@@ -145,6 +145,7 @@ resource "aiven_clickhouse" "demo-clickhouse" {
 
 module "digitransit-hfp-bus-positions" {
   source = "./digitransit-hfp"
+  connect_integration = aiven_service_integration.demo-kafka-connect-source-integration
   aiven_project_name = var.project_name
   kafka_connect_service_name = aiven_kafka_connect.demo-kafka-connect.service_name
   kafka_service_name = aiven_kafka.demo-kafka.service_name
@@ -154,6 +155,7 @@ module "digitransit-hfp-bus-positions" {
 
 module "digitransit-hfp-train-positions" {
   source = "./digitransit-hfp"
+  connect_integration = aiven_service_integration.demo-kafka-connect-source-integration
   aiven_project_name = var.project_name
   kafka_connect_service_name = aiven_kafka_connect.demo-kafka-connect.service_name
   kafka_service_name = aiven_kafka.demo-kafka.service_name
