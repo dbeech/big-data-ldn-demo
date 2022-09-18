@@ -1,3 +1,4 @@
 aiven-client
 clickhouse_driver
 folium
+python-dotenv

@@ -47,3 +47,10 @@ $ bash scripts/create_clickhouse_kafka_integration.sh
 
 6. Create ClickHouse materialized view using SQL in `scripts/create_clickhouse_view.sql`
 
+7. Prepare environment variables for Python Notebook
+```
+$ cd notebooks
+$ bash env.sh
+```
+Start your prefererred Notebook environment
+
