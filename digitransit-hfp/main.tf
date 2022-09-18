@@ -14,7 +14,7 @@ resource "aiven_kafka_topic" "digitransit-hfp-kafka-topic" {
   partitions               = 3
   replication              = 3
   config {
-    retention_ms = 604800000
+    retention_ms = 1209600000
   }
 }
 

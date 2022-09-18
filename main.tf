@@ -185,7 +185,7 @@ resource "aiven_kafka_topic" "demo-kafka-topic-digitransit-hfp-bus-positions-fla
   partitions               = 3
   replication              = 3
   config {
-    retention_ms = 604800000
+    retention_ms = 1209600000
   }
 }
 
