@@ -1,6 +1,6 @@
 # Big Data LDN Digitransit demo
 
-![Architecture diagram](images/architecture.png)
+![Architecture diagram](images/architecture.jpg)
 
 ## Instructions
 
