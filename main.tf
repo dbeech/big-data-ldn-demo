@@ -19,7 +19,7 @@ terraform {
   required_providers {
     aiven = {
       source = "aiven/aiven"
-      version = "3.11.0"
+      version = "3.12.0"
     }
   }
 }
@@ -47,7 +47,7 @@ resource "aiven_kafka" "demo-kafka" {
     ip_filter = var.allowed_ips
     kafka {
       auto_create_topics_enable = false
-    }  
+    }
     public_access {
       kafka = false
       kafka_rest = false
@@ -78,15 +78,19 @@ resource "aiven_service_integration" "demo-kafka-connect-source-integration" {
   destination_service_name = aiven_kafka_connect.demo-kafka-connect.service_name
 }
 
-###################################################
-# Apache Flink
-###################################################
+####################################################
+## Apache Flink
+####################################################
 
 resource "aiven_flink" "demo-flink" {
   project                 = var.project_name
   cloud_name              = var.service_cloud
   plan                    = var.service_plan_flink
   service_name            = "${var.service_name_prefix}-flink"
+
+  flink_user_config {
+    flink_version = 1.16
+  }
 }
 
 resource "aiven_service_integration" "demo-flink-kafka-integration" {
@@ -96,9 +100,9 @@ resource "aiven_service_integration" "demo-flink-kafka-integration" {
   destination_service_name = aiven_flink.demo-flink.service_name
 }
 
-###################################################
-# PostgreSQL
-###################################################
+####################################################
+## PostgreSQL
+####################################################
 
 resource "aiven_pg" "demo-postgres" {
   project                 = var.project_name
@@ -117,9 +121,9 @@ resource "aiven_service_integration" "demo-flink-postgres-integration" {
   destination_service_name = aiven_flink.demo-flink.service_name
 }
 
-###################################################
-# ClickHouse
-###################################################
+####################################################
+## ClickHouse
+####################################################
 
 resource "aiven_clickhouse" "demo-clickhouse" {
   project                 = var.project_name
@@ -128,16 +132,16 @@ resource "aiven_clickhouse" "demo-clickhouse" {
   service_name            = "${var.service_name_prefix}-clickhouse"
 }
 
-# resource "aiven_service_integration" "demo-clickhouse-kafka-integration" {
-#   project                  = var.project_name
-#   integration_type         = "clickhouse_kafka"
-#   source_service_name      = aiven_kafka.demo-kafka.service_name
-#   destination_service_name = aiven_clickhouse.demo-clickhouse.service_name
-# }
+resource "aiven_service_integration" "demo-clickhouse-kafka-integration" {
+  project                  = var.project_name
+  integration_type         = "clickhouse_kafka"
+  source_service_name      = aiven_kafka.demo-kafka.service_name
+  destination_service_name = aiven_clickhouse.demo-clickhouse.service_name
+}
 
-###################################################
-# DigiTransit HFP feeds
-###################################################
+####################################################
+## DigiTransit HFP feeds
+####################################################
 
 module "digitransit-hfp-bus-positions" {
   source = "./digitransit-hfp"
@@ -159,20 +163,6 @@ module "digitransit-hfp-train-positions" {
   mqtt_topic_name = "/hfp/v2/journey/ongoing/vp/train/+/+/+/+/+/+/+/+/+/+/+/+"
 }
 
-resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-bus-positions-raw" {
-  project              = var.project_name
-  service_name         = aiven_flink.demo-flink.service_name
-  integration_id       = aiven_service_integration.demo-flink-kafka-integration.integration_id
-  kafka_connector_type = "kafka"
-  kafka_topic          = "digitransit-hfp-bus-positions-raw"
-  table_name           = "digitransit_hfp_bus_positions_raw"
-  kafka_value_format   = "json"
-  kafka_startup_mode   = "latest-offset"
-  # deleted some useless fields to get this column descriptor below < 256 chars and avoid 500 errors from Flink API
-  schema_sql = <<EOF
-      `VP` ROW<`desi` STRING,`dir` STRING,`oper` INT,`veh` INT,`tst` STRING,`tsi` INT,`spd` FLOAT,`hdg` INT,`lat` FLOAT,`long` FLOAT,`acc` FLOAT,`dl` INT,`drst` INT,`oday` STRING,`start` STRING,`loc` STRING,`stop` STRING,`route` STRING,`occu` INT>
-  EOF
-}
 
 resource "aiven_kafka_topic" "demo-kafka-topic-digitransit-hfp-bus-positions-flattened" {
   project                  = var.project_name
@@ -185,62 +175,19 @@ resource "aiven_kafka_topic" "demo-kafka-topic-digitransit-hfp-bus-positions-fla
   }
 }
 
-resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-bus-positions-flattened" {
-  project              = var.project_name
-  service_name         = aiven_flink.demo-flink.service_name
-  integration_id       = aiven_service_integration.demo-flink-kafka-integration.integration_id
-  kafka_connector_type = "kafka"
-  kafka_topic          = "digitransit-hfp-bus-positions-flattened"
-  table_name           = "digitransit_hfp_bus_positions_flattened"
-  kafka_value_format   = "json"
-  kafka_startup_mode   = "latest-offset"
-  schema_sql = <<EOF
-    `desi` STRING,
-    `dir` STRING,
-    `oper` INT,
-    `oper_name` STRING,
-    `veh` INT,
-    `tst` STRING,
-    `tsi` INT,
-    `spd` FLOAT,
-    `hdg` INT,
-    `lat` FLOAT,
-    `long` FLOAT,
-    `acc` FLOAT,
-    `dl` INT,
-    `drst` INT,
-    `oday` STRING,
-    `start` STRING,
-    `loc` STRING,
-    `stop` STRING,
-    `route` STRING,
-    `occu` INT
-  EOF
+
+resource "aiven_flink_application" "positionflattening_app" {
+  project  = var.project_name
+  service_name = aiven_flink.demo-flink.service_name
+  name = "PositionFlatteningApp"
 }
 
-resource "aiven_flink_table" "demo-flink-table-digitransit-operators" {
-  project              = var.project_name
-  service_name         = aiven_flink.demo-flink.service_name
-  integration_id       = aiven_service_integration.demo-flink-postgres-integration.integration_id
-  jdbc_table           = "public.digitransit_operators"
-  table_name           = "digitransit_operators"
-  schema_sql = <<EOF
-    `id` INT PRIMARY KEY,
-    `name` STRING NOT NULL
-  EOF
-}
-
-resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flattening" {
-  project       = var.project_name
-  service_name  = aiven_flink.demo-flink.service_name
-  job_name      = "digitransit_hfp_bus_positions_flatten"
-  table_ids = [
-    aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-raw.table_id,
-    aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-flattened.table_id,
-    aiven_flink_table.demo-flink-table-digitransit-operators.table_id
-  ]                                                           
-  statement = <<EOF
-    INSERT INTO ${aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-flattened.table_name}
+resource "aiven_flink_application_version" "positionflattening_app_version" {
+  project        = var.project_name
+  service_name   = aiven_flink.demo-flink.service_name
+  application_id = aiven_flink_application.positionflattening_app.application_id
+  statement      = <<EOT
+    INSERT INTO demo-flink-table-digitransit-hfp-bus-positions-flattened
     SELECT
       VP.`desi`,
       VP.`dir`,
@@ -262,10 +209,75 @@ resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flatteni
       VP.`stop`,
       VP.`route`,
       VP.`occu`
-    FROM ${aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-raw.table_name} positions
-    INNER JOIN ${aiven_flink_table.demo-flink-table-digitransit-operators.table_name} operators
+    FROM digitransit_hfp_bus_positions_raw
+    INNER JOIN digitransit_operators
     ON positions.VP.`oper` = operators.`id`
-  EOF                                                                                             
+  EOT
+  sources {
+    create_table   = <<EOT
+    CREATE TABLE digitransit_hfp_bus_positions_raw (
+      `VP` ROW<`desi` STRING,`dir` STRING,`oper` INT,`veh` INT,`tst` STRING,`tsi` INT,`spd` FLOAT,`hdg` INT,`lat` FLOAT,`long` FLOAT,`acc` FLOAT,`dl` INT,`drst` INT,`oday` STRING,`start` STRING,`loc` STRING,`stop` STRING,`route` STRING,`occu` INT>
+    ) WITH (
+      'connector' = 'kafka',
+      'properties.bootstrap.servers' = '',
+      'scan.startup.mode' = 'latest-offset',
+      'topic' = 'digitransit-hfp-bus-positions-raw',
+      'value.format' = 'json',
+      'properties.group.id' = 'demo.cg'
+    )
+    EOT
+    integration_id = aiven_service_integration.demo-flink-kafka-integration.integration_id
+  }
+
+  sources {
+    create_table   = <<EOT
+    CREATE TABLE digitransit_operators (
+      id INT,
+      name STRING,
+        PRIMARY KEY (id) NOT ENFORCED
+    ) WITH (
+      'connector' = 'jdbc',
+      'url' = 'jdbc:postgresql://',
+      'table-name' = 'digitransit_operators'
+    )
+    EOT
+    integration_id = aiven_service_integration.demo-flink-kafka-integration.integration_id
+  }
+
+
+  sinks {
+    create_table   = <<EOT
+    CREATE TABLE demo-flink-table-digitransit-hfp-bus-positions-flattened (
+      desi STRING,
+      dir STRING,
+      oper INT,
+      oper_name STRING,
+      veh INT,
+      tst STRING,
+      tsi INT,
+      spd FLOAT,
+      hdg INT,
+      lat FLOAT,
+      long FLOAT,
+      acc FLOAT,
+      dl INT,
+      drst INT,
+      oday STRING,
+      start STRING,
+      loc STRING,
+      stop STRING,
+      route STRING,
+      occu INT
+    ) WITH (
+      'connector' = 'kafka',
+      'properties.bootstrap.servers' = '',
+      'scan.startup.mode' = 'latest-offset',
+      'topic' = 'digitransit-hfp-bus-positions-flattened',
+      'value.format' = 'json'
+    )
+    EOT
+    integration_id = aiven_service_integration.demo-flink-kafka-integration.integration_id
+  }
 }
 
 # *********************************
@@ -273,7 +285,7 @@ resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flatteni
 # *********************************
 
 resource "aiven_m3db" "demo-metrics" {
-  project                 = var.project_name 
+  project                 = var.project_name
   cloud_name              = var.service_cloud
   plan                    = var.service_plan_m3db
   service_name            = "${var.service_name_prefix}-metrics"
