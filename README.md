@@ -38,16 +38,9 @@ $ avn service cli bigdataldn-demo-postgres
 defaultdb=> \i scripts/create_postgres_schema.sql; 
 ```
 
-5. Update ClickHouse integration
+5. Create ClickHouse materialized view using SQL in `scripts/create_clickhouse_view.sql`
 
-```
-$ avn project switch <your-project-name>
-$ bash scripts/create_clickhouse_kafka_integration.sh
-```
-
-6. Create ClickHouse materialized view using SQL in `scripts/create_clickhouse_view.sql`
-
-7. Prepare environment variables for Python Notebook
+6. Prepare environment variables for Python Notebook
 ```
 $ cd notebooks
 $ bash env.sh
