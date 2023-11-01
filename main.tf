@@ -11,7 +11,7 @@ variable "service_plan_flink" {}
 variable "service_plan_kafka" {}
 variable "service_plan_kafka_connect" {}
 variable "service_plan_grafana" {}
-variable "service_plan_m3db" {}
+variable "service_plan_influxdb" {}
 variable "service_plan_opensearch" {}
 variable "service_plan_pg" {}
 
@@ -272,24 +272,13 @@ resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flatteni
 # Monitoring services
 # *********************************
 
-resource "aiven_m3db" "demo-metrics" {
+resource "aiven_influxdb" "demo-metrics" {
   project                 = var.project_name 
   cloud_name              = var.service_cloud
-  plan                    = var.service_plan_m3db
+  plan                    = var.service_plan_influxdb
   service_name            = "${var.service_name_prefix}-metrics"
-  m3db_user_config {
-    m3db_version          = "1.5"
+  influxdb_user_config {
     ip_filter             = var.allowed_ips
-    namespaces {
-      name = "default"
-      type = "unaggregated"
-      options {
-        retention_options {
-          blocksize_duration        = "2h"
-          retention_period_duration = "8d"
-        }
-      }
-    }
   }
 }
 
@@ -306,27 +295,27 @@ resource "aiven_grafana" "demo-metrics-dashboard" {
   }
 }
 
-# Metrics integration: Kafka -> M3
+# Metrics integration: Kafka -> InfluxDB
 resource "aiven_service_integration" "demo-metrics-integration-kafka" {
   project                  = var.project_name
   integration_type         = "metrics"
   source_service_name      = aiven_kafka.demo-kafka.service_name
-  destination_service_name = aiven_m3db.demo-metrics.service_name
+  destination_service_name = aiven_influxdb.demo-metrics.service_name
 }
 
-# Metrics integration: Flink -> M3
+# Metrics integration: Flink -> InfluxDB
 resource "aiven_service_integration" "demo-metrics-integration-flink" {
   project                  = var.project_name
   integration_type         = "metrics"
   source_service_name      = aiven_flink.demo-flink.service_name
-  destination_service_name = aiven_m3db.demo-metrics.service_name
+  destination_service_name = aiven_influxdb.demo-metrics.service_name
 }
 
-# Dashboard integration = M3 -> Grafana
+# Dashboard integration = InfluxDB -> Grafana
 resource "aiven_service_integration" "demo-dashboard-integration" {
   project                  = var.project_name
   integration_type         = "dashboard"
   source_service_name      = aiven_grafana.demo-metrics-dashboard.service_name
-  destination_service_name = aiven_m3db.demo-metrics.service_name
+  destination_service_name = aiven_influxdb.demo-metrics.service_name
 }
 
