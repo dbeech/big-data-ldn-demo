@@ -1,4 +1,4 @@
-kafka_version = "3.3"
+kafka_version = "3.6"
 project_name = "dbeech-demo"
 service_cloud = "google-europe-west2"
 service_cloud_alt = "google-europe-west2"
