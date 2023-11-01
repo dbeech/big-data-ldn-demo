@@ -128,12 +128,115 @@ resource "aiven_clickhouse" "demo-clickhouse" {
   service_name            = "${var.service_name_prefix}-clickhouse"
 }
 
-# resource "aiven_service_integration" "demo-clickhouse-kafka-integration" {
-#   project                  = var.project_name
-#   integration_type         = "clickhouse_kafka"
-#   source_service_name      = aiven_kafka.demo-kafka.service_name
-#   destination_service_name = aiven_clickhouse.demo-clickhouse.service_name
-# }
+resource "aiven_service_integration" "demo-clickhouse-kafka-integration" {
+  project                  = var.project_name
+  integration_type         = "clickhouse_kafka"
+  source_service_name      = aiven_kafka.demo-kafka.service_name
+  destination_service_name = aiven_clickhouse.demo-clickhouse.service_name
+  clickhouse_kafka_user_config {
+    # note: JSON is experimental data type and not supported yet
+    # tables {
+    #   name        = "digitransit_hfp_bus_positions_raw"
+    #   group_name  = "3e4bf765-3418-42bd-b6f9-0378d677d583"
+    #   data_format = "JSONEachRow"
+    #   columns {
+    #     name = "VP"
+    #     type = "JSON"
+    #   }
+    #   topics {
+    #     name = "digitransit-hfp-bus-positions-raw"
+    #   }
+    # }
+    tables {
+      name        = "digitransit_hfp_bus_positions_flattened"
+      group_name  = "65e9b6ef-978e-4746-8714-dfb2cbef6915"
+      data_format = "JSONEachRow"
+      columns { 
+        name = "desi" 
+        type = "String"
+      }
+      columns {
+        name = "dir"
+        type = "String"
+      }
+      columns {
+        name = "oper"
+        type = "Int32"
+      }
+      columns {
+        name = "oper_name"
+        type = "String"
+      }
+      columns {
+        name = "veh"
+        type = "Int32"
+      }
+      columns {
+        name = "tst"
+        type = "String"
+      }
+      columns {
+        name = "tsi"
+        type = "Int32"
+      }
+      columns {
+        name = "spd"
+        type = "Float32"
+      }
+      columns {
+        name = "hdg"
+        type = "Int32"
+      }
+      columns {
+        name = "lat"
+        type = "Float32"
+      }
+      columns {
+        name = "long"
+        type = "Float32"
+      }
+      columns {
+        name = "acc"
+        type = "Float32"
+      }
+      columns {
+        name = "dl"
+        type = "Int32"
+      }
+      columns {
+        name = "drst"
+        type = "Int32"
+      }
+      columns {
+        name = "oday"
+        type = "String"
+      }
+      columns {
+        name = "start"
+        type = "String"
+      }
+      columns {
+        name = "loc"
+        type = "String"
+      }
+      columns {
+        name = "stop"
+        type = "String"
+      }
+      columns {
+        name = "route"
+        type = "String"
+      }
+      columns {
+        name = "occu"
+        type = "Int32"
+      }
+      topics {
+        name = "digitransit-hfp-bus-positions-flattened"
+      }
+    }
+  }
+}
 
 ###################################################
 # DigiTransit HFP feeds
@@ -159,21 +262,6 @@ module "digitransit-hfp-train-positions" {
   mqtt_topic_name = "/hfp/v2/journey/ongoing/vp/train/+/+/+/+/+/+/+/+/+/+/+/+"
 }
 
-resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-bus-positions-raw" {
-  project              = var.project_name
-  service_name         = aiven_flink.demo-flink.service_name
-  integration_id       = aiven_service_integration.demo-flink-kafka-integration.integration_id
-  kafka_connector_type = "kafka"
-  kafka_topic          = "digitransit-hfp-bus-positions-raw"
-  table_name           = "digitransit_hfp_bus_positions_raw"
-  kafka_value_format   = "json"
-  kafka_startup_mode   = "latest-offset"
-  # deleted some useless fields to get this column descriptor below < 256 chars and avoid 500 errors from Flink API
-  schema_sql = <<EOF
-      `VP` ROW<`desi` STRING,`dir` STRING,`oper` INT,`veh` INT,`tst` STRING,`tsi` INT,`spd` FLOAT,`hdg` INT,`lat` FLOAT,`long` FLOAT,`acc` FLOAT,`dl` INT,`drst` INT,`oday` STRING,`start` STRING,`loc` STRING,`stop` STRING,`route` STRING,`occu` INT>
-  EOF
-}
-
 resource "aiven_kafka_topic" "demo-kafka-topic-digitransit-hfp-bus-positions-flattened" {
   project                  = var.project_name
   service_name             = aiven_kafka.demo-kafka.service_name
@@ -185,62 +273,18 @@ resource "aiven_kafka_topic" "demo-kafka-topic-digitransit-hfp-bus-positions-fla
   }
 }
 
-resource "aiven_flink_table" "demo-flink-table-digitransit-hfp-bus-positions-flattened" {
-  project              = var.project_name
-  service_name         = aiven_flink.demo-flink.service_name
-  integration_id       = aiven_service_integration.demo-flink-kafka-integration.integration_id
-  kafka_connector_type = "kafka"
-  kafka_topic          = "digitransit-hfp-bus-positions-flattened"
-  table_name           = "digitransit_hfp_bus_positions_flattened"
-  kafka_value_format   = "json"
-  kafka_startup_mode   = "latest-offset"
-  schema_sql = <<EOF
-    `desi` STRING,
-    `dir` STRING,
-    `oper` INT,
-    `oper_name` STRING,
-    `veh` INT,
-    `tst` STRING,
-    `tsi` INT,
-    `spd` FLOAT,
-    `hdg` INT,
-    `lat` FLOAT,
-    `long` FLOAT,
-    `acc` FLOAT,
-    `dl` INT,
-    `drst` INT,
-    `oday` STRING,
-    `start` STRING,
-    `loc` STRING,
-    `stop` STRING,
-    `route` STRING,
-    `occu` INT
-  EOF
+resource "aiven_flink_application" "demo-flink-application-digitransit-hfp-bus-position-flattening" {
+  project                 = var.project_name
+  service_name            = aiven_flink.demo-flink.service_name
+  name                    = "digitransit_hfp_bus_positions_flatten"
 }
 
-resource "aiven_flink_table" "demo-flink-table-digitransit-operators" {
-  project              = var.project_name
-  service_name         = aiven_flink.demo-flink.service_name
-  integration_id       = aiven_service_integration.demo-flink-postgres-integration.integration_id
-  jdbc_table           = "public.digitransit_operators"
-  table_name           = "digitransit_operators"
-  schema_sql = <<EOF
-    `id` INT PRIMARY KEY,
-    `name` STRING NOT NULL
-  EOF
-}
-
-resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flattening" {
-  project       = var.project_name
-  service_name  = aiven_flink.demo-flink.service_name
-  job_name      = "digitransit_hfp_bus_positions_flatten"
-  table_ids = [
-    aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-raw.table_id,
-    aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-flattened.table_id,
-    aiven_flink_table.demo-flink-table-digitransit-operators.table_id
-  ]                                                           
+resource "aiven_flink_application_version" "demo-flink-application-version-digitransit-hfp-bus-position-flattening" {
+  project                 = var.project_name
+  service_name            = aiven_flink.demo-flink.service_name
+  application_id          = aiven_flink_application.demo-flink-application-digitransit-hfp-bus-position-flattening.application_id
   statement = <<EOF
-    INSERT INTO ${aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-flattened.table_name}
+    INSERT INTO digitransit_hfp_bus_positions_flattened
     SELECT
       VP.`desi`,
       VP.`dir`,
@@ -262,10 +306,77 @@ resource "aiven_flink_job" "demo-flink-job-digitransit-hfp-bus-position-flatteni
       VP.`stop`,
       VP.`route`,
       VP.`occu`
-    FROM ${aiven_flink_table.demo-flink-table-digitransit-hfp-bus-positions-raw.table_name} positions
-    INNER JOIN ${aiven_flink_table.demo-flink-table-digitransit-operators.table_name} operators
+    FROM digitransit_hfp_bus_positions_raw positions
+    INNER JOIN digitransit_operators operators
     ON positions.VP.`oper` = operators.`id`
-  EOF                                                                                             
+  EOF   
+  sink {
+    create_table   = <<EOT
+    CREATE TABLE digitransit_hfp_bus_positions_flattened (
+      `desi` STRING,
+      `dir` STRING,
+      `oper` INT,
+      `oper_name` STRING,
+      `veh` INT,
+      `tst` STRING,
+      `tsi` INT,
+      `spd` FLOAT,
+      `hdg` INT,
+      `lat` FLOAT,
+      `long` FLOAT,
+      `acc` FLOAT,
+      `dl` INT,
+      `drst` INT,
+      `oday` STRING,
+      `start` STRING,
+      `loc` STRING,
+      `stop` STRING,
+      `route` STRING,
+      `occu` INT
+    ) WITH (
+      'connector' = 'kafka',
+      'properties.bootstrap.servers' = '',
+      'scan.startup.mode' = 'latest-offset',
+      'topic' = 'digitransit-hfp-bus-positions-flattened',
+      'value.format' = 'json'
+    )
+  EOT
+    integration_id = aiven_service_integration.demo-flink-kafka-integration.integration_id
+  }
+  source {
+    create_table   = <<EOT
+    CREATE TABLE digitransit_hfp_bus_positions_raw (
+      `VP` ROW<`desi` STRING,`dir` STRING,`oper` INT,`veh` INT,`tst` STRING,`tsi` INT,`spd` FLOAT,`hdg` INT,`lat` FLOAT,`long` FLOAT,`acc` FLOAT,`dl` INT,`drst` INT,`oday` STRING,`start` STRING,`loc` STRING,`stop` STRING,`route` STRING,`occu` INT>
+    ) WITH (
+      'connector' = 'kafka',
+      'properties.bootstrap.servers' = '',
+      'scan.startup.mode' = 'earliest-offset',
+      'topic' = 'digitransit-hfp-bus-positions-raw',
+      'value.format' = 'json'
+    )
+    EOT
+    integration_id = aiven_service_integration.demo-flink-kafka-integration.integration_id
+  }
+  source {
+    create_table   = <<EOT
+    CREATE TABLE digitransit_operators (
+      `id` INT PRIMARY KEY,
+      `name` STRING NOT NULL
+    ) WITH (
+      'connector' = 'jdbc',
+      'url' = 'jdbc:postgresql://',
+      'table-name' = 'public.digitransit_operators'
+    )
+    EOT
+    integration_id = aiven_service_integration.demo-flink-postgres-integration.integration_id
+  }
+}
+
+resource "aiven_flink_application_deployment" "demo-flink-application-deployment-digitransit-hfp-bus-position-flattening" {
+  project                 = var.project_name
+  service_name            = aiven_flink.demo-flink.service_name
+  application_id          = aiven_flink_application.demo-flink-application-digitransit-hfp-bus-position-flattening.application_id
+  version_id              = aiven_flink_application_version.demo-flink-application-version-digitransit-hfp-bus-position-flattening.application_version_id 
 }
 
 # *********************************
