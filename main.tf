@@ -44,7 +44,7 @@ resource "aiven_kafka" "demo-kafka" {
     kafka_rest = true
     kafka_connect = false
     kafka_version = var.kafka_version
-    ip_filter = var.allowed_ips
+    ip_filter_string = var.allowed_ips
     kafka {
       auto_create_topics_enable = false
     }  
@@ -63,7 +63,7 @@ resource "aiven_kafka_connect" "demo-kafka-connect" {
   plan                    = var.service_plan_kafka_connect
   service_name            = "${var.service_name_prefix}-kafka-connect"
   kafka_connect_user_config {
-    ip_filter = var.allowed_ips
+    ip_filter_string = var.allowed_ips
     public_access {
       kafka_connect = true
       prometheus = true
@@ -389,7 +389,7 @@ resource "aiven_influxdb" "demo-metrics" {
   plan                    = var.service_plan_influxdb
   service_name            = "${var.service_name_prefix}-metrics"
   influxdb_user_config {
-    ip_filter             = var.allowed_ips
+    ip_filter_string      = var.allowed_ips
   }
 }
 
@@ -399,7 +399,7 @@ resource "aiven_grafana" "demo-metrics-dashboard" {
   plan                    = var.service_plan_grafana
   service_name            = "${var.service_name_prefix}-metrics-dashboard"
   grafana_user_config {
-    ip_filter = var.allowed_ips
+    ip_filter_string = var.allowed_ips
     public_access {
       grafana = true
     }
